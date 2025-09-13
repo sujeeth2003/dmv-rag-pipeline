@@ -25,3 +25,23 @@ SECTIONS = {
                             ("Driver hours", "Commercial drivers may drive at most {days} hours per week and must rest {pct} minutes after 4 hours.")],
 }
 
+
+def make_pages(seed=0, rules_per_section=None):
+    """Returns {state: raw_text}. rules_per_section repeats/varies the rules to scale the corpus for benchmarking."""
+    rnd = random.Random(seed)
+    pages = {}
+    for st in STATES:
+        code = st[:2].upper()
+        lines, n = [f"STATE: {st}", ""], 0
+        for sec, templates in SECTIONS.items():
+            lines += [f"SECTION: {sec}", ""]
+            reps = rules_per_section or 1
+            for r in range(reps):
+                for title, tmpl in templates:
+                    n += 1
+                    t = title if reps == 1 else f"{title} (schedule {r + 1})"
+                    body = tmpl.format(fee=rnd.randint(20, 400), days=rnd.choice([7, 14, 30, 45, 60, 90]),
+                                       years=rnd.choice([2, 3, 4, 5]), pct=rnd.choice([20, 30, 40, 70, 80, 85]))
+                    lines += [f"RULE {code}-{n}: {t}", body, f"Updated: 202{rnd.randint(3, 5)}-{rnd.randint(1, 12):02d}-{rnd.randint(1, 28):02d}", ""]
+        pages[st] = "\n".join(lines)
+    return pages
