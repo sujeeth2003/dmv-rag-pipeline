@@ -46,3 +46,17 @@ def extract(raw_text):
     if len(ids) != len(set(ids)): raise SchemaError("duplicate rule ids")
     return recs
 
+
+class LocalStore:
+    def __init__(self, root): self.root = root
+    def put(self, key, data: bytes):
+        p = os.path.join(self.root, key); os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "wb") as f: f.write(data)
+    def get(self, key):
+        with open(os.path.join(self.root, key), "rb") as f: return f.read()
+    def list(self, prefix=""):
+        out = []
+        for d, _, fs in os.walk(os.path.join(self.root, prefix)):
+            out += [os.path.relpath(os.path.join(d, f), self.root).replace("\\", "/") for f in fs]
+        return sorted(out)
+
