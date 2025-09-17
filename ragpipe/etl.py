@@ -30,3 +30,19 @@ def extract(raw_text):
             recs.append(rule)
         rule, body = None, []
 
+    for ln, line in enumerate(raw_text.splitlines(), 1):
+        s = line.strip()
+        if s.startswith("STATE:"): state = s[6:].strip()
+        elif s.startswith("SECTION:"): flush(); section = s[8:].strip()
+        elif RULE_RE.match(s):
+            flush()
+            if not (state and section): raise SchemaError(f"line {ln}: rule before STATE/SECTION")
+            rid, title = RULE_RE.match(s).groups()
+            rule = {"id": rid, "state": state, "section": section, "title": title, "text": "", "updated": None}
+        elif s.startswith("Updated:"): flush(s[8:].strip())
+        elif rule is not None: body.append(s)
+    flush()
+    ids = [r["id"] for r in recs]
+    if len(ids) != len(set(ids)): raise SchemaError("duplicate rule ids")
+    return recs
+
