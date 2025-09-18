@@ -74,3 +74,17 @@ class S3Store:
             out += [o["Key"] for o in page.get("Contents", [])]
         return sorted(out)
 
+
+def _slug(s): return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+
+
+def load(records, store):
+    """Write one JSON file per (state, section) partition; returns the partition keys."""
+    parts = {}
+    for r in records:
+        parts.setdefault((r["state"], r["section"]), []).append(r)
+    keys = []
+    for (st, sec), rs in sorted(parts.items()):
+        key = f"state={_slug(st)}/section={_slug(sec)}/rules.json"
+        store.put(key, json.dumps(rs, indent=1).encode()); keys.append(key)
+    return keys
