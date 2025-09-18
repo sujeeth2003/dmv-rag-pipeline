@@ -60,3 +60,17 @@ class LocalStore:
             out += [os.path.relpath(os.path.join(d, f), self.root).replace("\\", "/") for f in fs]
         return sorted(out)
 
+
+class S3Store:
+    """Same interface over Amazon S3 (credentials come from the standard AWS environment / IAM role)."""
+    def __init__(self, bucket):
+        import boto3
+        self.s3, self.bucket = boto3.client("s3"), bucket
+    def put(self, key, data: bytes): self.s3.put_object(Bucket=self.bucket, Key=key, Body=data)
+    def get(self, key): return self.s3.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+    def list(self, prefix=""):
+        out = []
+        for page in self.s3.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=prefix):
+            out += [o["Key"] for o in page.get("Contents", [])]
+        return sorted(out)
+
