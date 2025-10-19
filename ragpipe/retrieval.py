@@ -24,3 +24,23 @@ class BM25:
             for w in t: self.df[w] = self.df.get(w, 0) + 1
         self.n = len(docs)
 
+    @staticmethod
+    def _tf(ts):
+        d = {}
+        for w in ts: d[w] = d.get(w, 0) + 1
+        return d
+
+    def search(self, query, k=5):
+        q = tokens(query)
+        scores = []
+        for i, tf in enumerate(self.tf):
+            s = 0.0
+            for w in q:
+                f = tf.get(w)
+                if not f: continue
+                idf = math.log(1 + (self.n - self.df[w] + 0.5) / (self.df[w] + 0.5))
+                s += idf * f * (self.k1 + 1) / (f + self.k1 * (1 - self.b + self.b * self.len[i] / self.avg))
+            if s > 0: scores.append((s, i))
+        scores.sort(reverse=True)
+        return [(s, self.docs[i]) for s, i in scores[:k]]
+
