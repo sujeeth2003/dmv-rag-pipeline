@@ -65,3 +65,21 @@ class HierarchicalIndex:
                 tot[w] = tot.get(w, 0) + 1
         self.conc = {s: {w: c / tot[w] for w, c in d.items()} for s, d in self.sec_tf.items()}
 
+    def route(self, query):
+        q = set(tokens(query))
+        states = [s for s in self.states if q & set(tokens(s))]
+        scored = sorted(((sum(self.conc[s].get(w, 0.0) for w in q), s) for s in self.sections), reverse=True)
+        secs = [s for sc, s in scored[:2] if sc >= 0.6]          # up to two sections whose vocabulary the query really uses
+        return states, secs
+
+    def search(self, query, k=5, hierarchical=True):
+        if not hierarchical:
+            return self.flat.search(query, k), None
+        states, secs = self.route(query)
+        cand = [key for key in self.part_idx if (not states or key[0] in states) and (not secs or key[1] in secs)]
+        hits = []
+        for key in cand:
+            hits += self.part_idx[key].search(query, k)      # scores are per-partition BM25; merge by score
+        hits.sort(key=lambda x: -x[0])
+        return hits[:k], {"states": states, "sections": secs, "partitions": len(cand)}
+
