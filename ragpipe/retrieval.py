@@ -44,3 +44,24 @@ class BM25:
         scores.sort(reverse=True)
         return [(s, self.docs[i]) for s, i in scores[:k]]
 
+
+class HierarchicalIndex:
+    """One BM25 index per (state, section) partition plus a flat index over everything.
+    A router narrows the query to the states/sections it mentions, so BM25 scans a partition, not the corpus."""
+
+    def __init__(self, records):
+        self.records = records
+        self.flat = BM25(records)
+        self.parts, self.states, self.sections = {}, set(), set()
+        for r in records:
+            self.parts.setdefault((r["state"], r["section"]), []).append(r)
+            self.states.add(r["state"]); self.sections.add(r["section"])
+        self.part_idx = {k: BM25(v) for k, v in self.parts.items()}
+        # data-driven section vocabulary: how concentrated each word is in each section (1.0 = appears only there)
+        self.sec_tf, tot = {s: {} for s in self.sections}, {}
+        for r in records:
+            for w in set(tokens(r["title"] + " " + r["text"])):
+                self.sec_tf[r["section"]][w] = self.sec_tf[r["section"]].get(w, 0) + 1
+                tot[w] = tot.get(w, 0) + 1
+        self.conc = {s: {w: c / tot[w] for w, c in d.items()} for s, d in self.sec_tf.items()}
+
