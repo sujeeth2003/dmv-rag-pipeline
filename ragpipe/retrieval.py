@@ -98,3 +98,13 @@ class TTLCache:
         self.d.move_to_end(key); self.hits += 1
         return v[1]
 
+    def set(self, key, value):
+        self.d[key] = (self.clock() + self.ttl, value); self.d.move_to_end(key)
+        while len(self.d) > self.cap: self.d.popitem(last=False)
+
+
+def load_index_from_store(store, prefix=""):
+    recs = []
+    for key in store.list(prefix):
+        if key.endswith("rules.json"): recs += json.loads(store.get(key))
+    return HierarchicalIndex(recs)
