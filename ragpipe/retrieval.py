@@ -83,3 +83,18 @@ class HierarchicalIndex:
         hits.sort(key=lambda x: -x[0])
         return hits[:k], {"states": states, "sections": secs, "partitions": len(cand)}
 
+
+class TTLCache:
+    """LRU + time-to-live cache with the get/set shape of Redis, so `redis.Redis` can be dropped in."""
+
+    def __init__(self, capacity=1024, ttl=300.0, clock=time.monotonic):
+        self.cap, self.ttl, self.clock, self.d = capacity, ttl, clock, OrderedDict()
+        self.hits = self.misses = 0
+
+    def get(self, key):
+        v = self.d.get(key)
+        if v is None or v[0] < self.clock():
+            self.d.pop(key, None); self.misses += 1; return None
+        self.d.move_to_end(key); self.hits += 1
+        return v[1]
+
