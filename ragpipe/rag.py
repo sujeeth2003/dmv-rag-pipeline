@@ -12,3 +12,31 @@ SYSTEM = ("You answer questions about state motor-vehicle and hospital facility 
           "Cite rule ids in square brackets. If the context does not contain the answer, say you do not have it. Never guess figures.")
 
 
+def build_prompt(question, hits):
+    ctx = "\n".join(f"[{h['id']}] ({h['state']} / {h['section']}) {h['title']}: {h['text']}" for _, h in hits)
+    return f"Context:\n{ctx}\n\nQuestion: {question}\nAnswer:"
+
+
+class Answerer:
+    def __init__(self, index, cache=None, llm=None, min_score=1.0):
+        self.index, self.cache, self.llm, self.min_score = index, cache or TTLCache(), llm, min_score
+
+    def answer(self, question, k=3):
+        key = question.strip().lower()
+        cached = self.cache.get(key)
+        if cached:
+            return {**cached, "cached": True}
+        hits, route = self.index.search(question, k)
+        if not hits or hits[0][0] < self.min_score:
+            out = {"answer": "I don't have that information in the loaded rules.", "sources": [], "route": route}
+        else:
+            top = hits[0][1]
+            if self.llm:
+                text = self.llm(SYSTEM, build_prompt(question, hits))
+            else:
+                text = f"{top['title']} ({top['state']}): {top['text']}"
+            out = {"answer": text, "sources": [{"id": h["id"], "state": h["state"], "section": h["section"], "score": round(s, 2)} for s, h in hits],
+                   "route": route}
+        self.cache.set(key, out)
+        return {**out, "cached": False}
+
