@@ -40,3 +40,13 @@ class Answerer:
         self.cache.set(key, out)
         return {**out, "cached": False}
 
+
+def anthropic_llm(model="claude-sonnet-5"):
+    """Optional LLM callable. Needs `pip install anthropic` and ANTHROPIC_API_KEY in the environment."""
+    import anthropic
+    client = anthropic.Anthropic()
+
+    def call(system, prompt):
+        r = client.messages.create(model=model, max_tokens=400, system=system, messages=[{"role": "user", "content": prompt}])
+        return r.content[0].text
+    return call
