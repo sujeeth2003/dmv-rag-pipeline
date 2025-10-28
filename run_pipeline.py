@@ -45,3 +45,14 @@ def main():
         t1, t3, ms = evaluate(h)
         print(f"{name:<26}{t1:>8.0%}{t3:>8.0%}{ms:>12.2f}")
 
+    bot = Answerer(idx)
+    for q in ["What is the licence renewal period in Northvale (schedule 1)?", "How often are hospitals inspected in Eastmoor (schedule 2)?",
+              "What is the airspeed of an unladen swallow?"]:
+        r = bot.answer(q)
+        print(f"\nQ: {q}\nA: {r['answer']}\n   sources: {[s['id'] for s in r['sources']]}  route: {r['route']}")
+    t0 = time.perf_counter(); bot.answer("What is the licence renewal period in Northvale (schedule 1)?")
+    print(f"\ncached repeat of the first question: {(time.perf_counter() - t0) * 1000:.3f} ms  (cache hits={bot.cache.hits})")
+
+
+if __name__ == "__main__":
+    main()
