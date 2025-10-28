@@ -27,3 +27,21 @@ def main():
     print("  e.g.", keys[0])
     idx = load_index_from_store(store)
 
+    # questions with a known gold rule: ask about a rule's title, in a given state
+    rnd = random.Random(0)
+    gold = rnd.sample(records, 200)
+    qs = [(f"What is the {g['title'].split(' (')[0].lower()} in {g['state']} (schedule {g['title'].split('schedule ')[-1].rstrip(')')})?", g) for g in gold]
+
+    def evaluate(hier):
+        top1 = top3 = 0
+        t0 = time.perf_counter()
+        for q, g in qs:
+            hits, _ = idx.search(q, 3, hierarchical=hier)
+            ids = [h["id"] for _, h in hits]
+            top1 += bool(ids) and ids[0] == g["id"]; top3 += g["id"] in ids
+        return top1 / len(qs), top3 / len(qs), (time.perf_counter() - t0) / len(qs) * 1000
+    print(f"\n{'retrieval':<26}{'top-1':>8}{'top-3':>8}{'ms / query':>12}")
+    for name, h in (("flat BM25 (whole corpus)", False), ("hierarchical (routed)", True)):
+        t1, t3, ms = evaluate(h)
+        print(f"{name:<26}{t1:>8.0%}{t3:>8.0%}{ms:>12.2f}")
+
