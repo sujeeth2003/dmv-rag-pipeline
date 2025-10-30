@@ -32,3 +32,20 @@ class ETLTests(unittest.TestCase):
         self.assertTrue(all(k.startswith("state=") and "/section=" in k for k in keys))
         self.assertEqual(sum(len(json.loads(st.get(k))) for k in keys), len(recs))
 
+
+class RetrievalTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        st = etl.LocalStore(tempfile.mkdtemp())
+        cls.recs = [r for p in make_pages(2, rules_per_section=5).values() for r in etl.extract(p)]
+        etl.load(cls.recs, st)
+        cls.idx = load_index_from_store(st)
+
+    def test_bm25_ranks_the_matching_doc_first(self):
+        docs = [{"id": "1", "title": "Bicycle helmets", "text": "must be worn"}, {"id": "2", "title": "Truck weight", "text": "limits apply"}]
+        self.assertEqual(BM25(docs).search("weight limits for a truck", 1)[0][1]["id"], "2")
+
+    def test_router_finds_state_and_section(self):
+        states, secs = self.idx.route("hospital inspection frequency in Eastmoor")
+        self.assertEqual(states, ["Eastmoor"]); self.assertIn("Hospital Facility Codes", secs)
+
