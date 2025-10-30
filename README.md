@@ -19,3 +19,11 @@ raw pages --extract/validate--> JSON records --partition--> store: state=<s>/sec
 - **Cache:** an LRU + TTL cache with the `get`/`set` shape of Redis, so `redis.Redis` can replace it for a shared cache.
 - **RAG (`ragpipe/rag.py`):** builds a grounded prompt ("answer ONLY from the numbered context, cite rule ids, say so if the answer is not there"). With no API key it answers **extractively** (the best rule's text + citation), so it works offline; pass `anthropic_llm()` (needs `ANTHROPIC_API_KEY`) for fluent multi-rule answers. Low-scoring retrievals return "I don't have that information" instead of guessing.
 
+## Results (2,200 rules across 8 states x 4 sections = 32 partitions; 200 questions with a known gold rule)
+```
+retrieval                    top-1   top-3  ms / query
+flat BM25 (whole corpus)      100%    100%        2.67
+hierarchical (routed)          92%    100%        0.22
+```
+The hierarchy is **12x faster** because each query scans roughly 70-140 rules instead of 2,200, and it stays at 100% top-3, but **top-1 falls from 100% to 92%**: when the router picks the wrong section the right rule is not a candidate. That is the real trade-off of structuring data for speed. (An earlier version of my comparison showed flat retrieval at 12% only because the index could not see the state name; I fixed that so the baseline is fair.) With real, non-templated text the flat index has less trouble telling rules apart, so expect a smaller accuracy gap and the same latency gain. A cached repeat of a question costs ~3 microseconds.
+
