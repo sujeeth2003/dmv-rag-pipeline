@@ -81,3 +81,12 @@ class RagTests(unittest.TestCase):
         r = self.bot.answer("What is the airspeed velocity of an unladen swallow?")
         self.assertEqual(r["sources"], []); self.assertIn("don't have", r["answer"])
 
+    def test_llm_is_grounded_and_receives_context(self):
+        seen = {}
+        bot = Answerer(self.bot.index, llm=lambda sys_p, prompt: seen.update(p=prompt, s=sys_p) or "ok [X]")
+        bot.answer("How often are hospitals inspected in Eastmoor?")
+        self.assertIn("ONLY", seen["s"]); self.assertIn("Context:", seen["p"]); self.assertIn("Eastmoor", seen["p"])
+
+
+if __name__ == "__main__":
+    unittest.main()
