@@ -66,3 +66,18 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(c.get("c"), 3)
         t[0] = 11; self.assertIsNone(c.get("c"))                             # expired (TTL)
 
+
+class RagTests(unittest.TestCase):
+    def setUp(self):
+        recs = [r for p in make_pages(3).values() for r in etl.extract(p)]
+        self.bot = Answerer(HierarchicalIndex(recs))
+
+    def test_answer_cites_sources_and_caches(self):
+        r1 = self.bot.answer("What is the licence renewal period in Northvale?")
+        self.assertTrue(r1["sources"]); self.assertFalse(r1["cached"]); self.assertIn("Northvale", r1["answer"])
+        self.assertTrue(self.bot.answer("What is the licence renewal period in Northvale?")["cached"])
+
+    def test_refuses_when_nothing_relevant(self):
+        r = self.bot.answer("What is the airspeed velocity of an unladen swallow?")
+        self.assertEqual(r["sources"], []); self.assertIn("don't have", r["answer"])
+
