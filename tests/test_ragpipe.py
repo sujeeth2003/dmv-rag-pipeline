@@ -49,3 +49,20 @@ class RetrievalTests(unittest.TestCase):
         states, secs = self.idx.route("hospital inspection frequency in Eastmoor")
         self.assertEqual(states, ["Eastmoor"]); self.assertIn("Hospital Facility Codes", secs)
 
+    def test_hierarchical_matches_flat_accuracy_and_scans_fewer_docs(self):
+        hits = 0
+        gold = self.recs[::37][:40]
+        for g in gold:
+            q = f"{g['title'].split(' (')[0]} in {g['state']} {g['title'].split('schedule ')[-1].rstrip(')')}"
+            h, route = self.idx.search(q, 3, hierarchical=True)
+            hits += g["id"] in [x["id"] for _, x in h]
+            self.assertLess(route["partitions"], len(self.idx.parts))         # routed to a strict subset of partitions
+        self.assertGreaterEqual(hits / len(gold), 0.7)
+
+    def test_cache_ttl_and_lru(self):
+        t = [0.0]; c = TTLCache(capacity=2, ttl=10, clock=lambda: t[0])
+        c.set("a", 1); c.set("b", 2); c.set("c", 3)
+        self.assertIsNone(c.get("a"))                                        # evicted (LRU)
+        self.assertEqual(c.get("c"), 3)
+        t[0] = 11; self.assertIsNone(c.get("c"))                             # expired (TTL)
+
