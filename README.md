@@ -27,3 +27,12 @@ hierarchical (routed)          92%    100%        0.22
 ```
 The hierarchy is **12x faster** because each query scans roughly 70-140 rules instead of 2,200, and it stays at 100% top-3, but **top-1 falls from 100% to 92%**: when the router picks the wrong section the right rule is not a candidate. That is the real trade-off of structuring data for speed. (An earlier version of my comparison showed flat retrieval at 12% only because the index could not see the state name; I fixed that so the baseline is fair.) With real, non-templated text the flat index has less trouble telling rules apart, so expect a smaller accuracy gap and the same latency gain. A cached repeat of a question costs ~3 microseconds.
 
+## Run
+```bash
+python -m unittest discover -s tests     # 10 tests: parsing + error lines, partitioned load, BM25, routing, cache TTL/LRU, refusal, grounded prompt
+python run_pipeline.py                   # ETL, benchmark, three sample questions
+```
+Pure standard library. Optional: `boto3` (S3), `redis`, `anthropic`. MongoDB fits as the record store in place of JSON files (same records); it is not wired in here.
+
+## Limits
+Lexical search only (no embeddings), so paraphrases with no shared words will miss; adding a dense retriever and merging scores is the natural next step. The router assumes the state is named in the question.
